@@ -1,6 +1,16 @@
 services:
   postgres:
     image: postgres:17
+    command:
+      - postgres
+      - -c
+      - max_wal_size=${POSTGRES_MAX_WAL_SIZE:-4GB}
+      - -c
+      - min_wal_size=${POSTGRES_MIN_WAL_SIZE:-1GB}
+      - -c
+      - checkpoint_timeout=${POSTGRES_CHECKPOINT_TIMEOUT:-15min}
+      - -c
+      - wal_compression=${POSTGRES_WAL_COMPRESSION:-on}
     environment:
       POSTGRES_DB: benchmark
       POSTGRES_USER: benchmark
@@ -18,6 +28,7 @@ services:
       - "9000:9000"
     volumes:
       - clickhouse-data:/var/lib/clickhouse
+      - ./docker/clickhouse-users.xml:/etc/clickhouse-server/users.d/default-user.xml:ro
       - ./sql/clickhouse/01-create-database.sql:/docker-entrypoint-initdb.d/01-create-database.sql
       - ./sql/clickhouse/02-create-order-grid-flat.sql:/docker-entrypoint-initdb.d/02-create-order-grid-flat.sql
 
@@ -25,6 +36,7 @@ services:
     build:
       context: .
       dockerfile: docker/customer-service.Dockerfile
+    platform: linux/amd64
     environment:
       APP_POSTGRES_URL: jdbc:postgresql://postgres:5432/benchmark
       APP_POSTGRES_USERNAME: benchmark
@@ -38,6 +50,7 @@ services:
     build:
       context: .
       dockerfile: docker/product-service.Dockerfile
+    platform: linux/amd64
     environment:
       APP_POSTGRES_URL: jdbc:postgresql://postgres:5432/benchmark
       APP_POSTGRES_USERNAME: benchmark
@@ -51,11 +64,14 @@ services:
     build:
       context: .
       dockerfile: docker/grid-service.Dockerfile
+    platform: linux/amd64
     environment:
       APP_POSTGRES_URL: jdbc:postgresql://postgres:5432/benchmark
       APP_POSTGRES_USERNAME: benchmark
       APP_POSTGRES_PASSWORD: benchmark
       APP_CLICKHOUSE_URL: jdbc:ch://clickhouse:8123/benchmark
+      APP_CLICKHOUSE_USERNAME: default
+      APP_CLICKHOUSE_PASSWORD: ""
       CUSTOMER_SERVICE_URL: http://customer-service:8081
       PRODUCT_SERVICE_URL: http://product-service:8082
     depends_on:

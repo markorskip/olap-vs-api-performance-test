@@ -120,7 +120,7 @@ curl 'http://localhost:8080/api/grid/orders?pattern=C&page=0&size=100&sortBy=cus
 ### Run the benchmark endpoint
 
 ```bash
-curl -X POST http://localhost:8080/api/grid/orders/benchmark \
+curl -X POST ./s\
   -H 'Content-Type: application/json' \
   -d '{"pattern":"B","iterations":5,"page":0,"size":100,"sortBy":"orderedAt","sortDirection":"desc"}'
 ```

@@ -89,11 +89,18 @@
         sortDirection: document.getElementById('sortDirection').value
       });
       const response = await fetch(`/api/grid/orders?${params.toString()}`);
+      if (!response.ok) {
+        const errorText = await response.text().catch(() => response.statusText);
+        summary.innerHTML = `<h2>Error</h2><p>Status ${response.status}: ${errorText}</p>`;
+        rows.innerHTML = '';
+        return;
+      }
       const data = await response.json();
+      const memory = data.memory || {heapUsedBytes: 'N/A', podName: 'N/A'};
       summary.innerHTML = `
         <h2>Run summary</h2>
         <p><strong>Pattern:</strong> ${data.pattern} | <strong>Duration:</strong> <span class="mono">${data.durationMs} ms</span> | <strong>Total rows:</strong> <span class="mono">${data.totalElements}</span></p>
-        <p><strong>Heap used:</strong> <span class="mono">${data.memory.heapUsedBytes}</span> | <strong>Pod:</strong> <span class="mono">${data.memory.podName}</span></p>`;
+        <p><strong>Heap used:</strong> <span class="mono">${memory.heapUsedBytes}</span> | <strong>Pod:</strong> <span class="mono">${memory.podName}</span></p>`;
       rows.innerHTML = '';
       data.content.forEach(row => {
         const tr = document.createElement('tr');
