@@ -1,0 +1,18 @@
+server:
+  port: 8082
+spring:
+  application:
+    name: product-service
+  datasource:
+    url: ${APP_POSTGRES_URL:jdbc:postgresql://localhost:5432/benchmark}
+    username: ${APP_POSTGRES_USERNAME:benchmark}
+    password: ${APP_POSTGRES_PASSWORD:benchmark}
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,prometheus,metrics
+  endpoint:
+    health:
+      probes:
+        enabled: true
