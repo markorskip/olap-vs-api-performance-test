@@ -1,0 +1,27 @@
+server:
+  port: 8080
+spring:
+  application:
+    name: grid-service
+  datasource:
+    url: ${APP_POSTGRES_URL:jdbc:postgresql://localhost:5432/benchmark}
+    username: ${APP_POSTGRES_USERNAME:benchmark}
+    password: ${APP_POSTGRES_PASSWORD:benchmark}
+app:
+  services:
+    customer-base-url: ${CUSTOMER_SERVICE_URL:http://localhost:8081}
+    product-base-url: ${PRODUCT_SERVICE_URL:http://localhost:8082}
+  clickhouse:
+    driver-class-name: com.clickhouse.jdbc.ClickHouseDriver
+    url: ${APP_CLICKHOUSE_URL:jdbc:ch://localhost:8123/benchmark}
+    username: ${APP_CLICKHOUSE_USERNAME:default}
+    password: ${APP_CLICKHOUSE_PASSWORD:}
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,prometheus,metrics
+  endpoint:
+    health:
+      probes:
+        enabled: true

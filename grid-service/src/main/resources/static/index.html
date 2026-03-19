@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>OLAP vs API Grid Benchmark</title>
+  <style>
+    body { font-family: Arial, sans-serif; margin: 0; padding: 24px; background: #0f172a; color: #e2e8f0; }
+    h1, h2 { margin-bottom: 8px; }
+    .controls, .summary { background: #111827; padding: 16px; border-radius: 12px; margin-bottom: 16px; }
+    .controls { display: grid; grid-template-columns: repeat(6, minmax(120px, 1fr)); gap: 12px; align-items: end; }
+    label { display: flex; flex-direction: column; font-size: 12px; gap: 6px; }
+    select, input, button { padding: 10px; border-radius: 8px; border: 1px solid #334155; background: #1e293b; color: #e2e8f0; }
+    button { cursor: pointer; background: #2563eb; }
+    table { width: 100%; border-collapse: collapse; background: #111827; border-radius: 12px; overflow: hidden; }
+    th, td { padding: 10px; border-bottom: 1px solid #1f2937; text-align: left; font-size: 13px; }
+    th button { background: transparent; border: none; color: inherit; padding: 0; font: inherit; cursor: pointer; }
+    .chip { display: inline-block; background: #1d4ed8; padding: 4px 8px; border-radius: 999px; font-size: 12px; }
+    .mono { font-family: monospace; }
+  </style>
+</head>
+<body>
+  <h1>OLAP vs API Performance Benchmark</h1>
+  <p>Compare three access patterns against the same logical grid: <span class="chip">A = in-memory join/sort/page</span> <span class="chip">B = PostgreSQL cross-schema view</span> <span class="chip">C = ClickHouse</span></p>
+
+  <section class="controls">
+    <label>Pattern
+      <select id="pattern">
+        <option value="A">A - In memory</option>
+        <option value="B">B - PostgreSQL view</option>
+        <option value="C">C - ClickHouse</option>
+      </select>
+    </label>
+    <label>Page
+      <input id="page" type="number" value="0" min="0" />
+    </label>
+    <label>Size
+      <input id="size" type="number" value="100" min="1" max="100" />
+    </label>
+    <label>Sort column
+      <select id="sortBy"></select>
+    </label>
+    <label>Direction
+      <select id="sortDirection">
+        <option value="asc">Ascending</option>
+        <option value="desc" selected>Descending</option>
+      </select>
+    </label>
+    <button id="load">Load grid</button>
+  </section>
+
+  <section class="summary" id="summary"></section>
+
+  <table>
+    <thead>
+    <tr id="headers"></tr>
+    </thead>
+    <tbody id="rows"></tbody>
+  </table>
+
+  <script>
+    const columns = [
+      'orderId','customerId','customerName','customerRegion','customerSegment','productId','productSku','productName','productCategory','quantity','unitPrice','extendedPrice','orderStatus','salesChannel','orderedAt'
+    ];
+    const sortBy = document.getElementById('sortBy');
+    const headers = document.getElementById('headers');
+    const rows = document.getElementById('rows');
+    const summary = document.getElementById('summary');
+    columns.forEach(column => {
+      const option = document.createElement('option');
+      option.value = column;
+      option.textContent = column;
+      if (column === 'orderedAt') option.selected = true;
+      sortBy.appendChild(option);
+      const th = document.createElement('th');
+      const button = document.createElement('button');
+      button.textContent = column;
+      button.onclick = () => { document.getElementById('sortBy').value = column; loadGrid(); };
+      th.appendChild(button);
+      headers.appendChild(th);
+    });
+
+    async function loadGrid() {
+      const params = new URLSearchParams({
+        pattern: document.getElementById('pattern').value,
+        page: document.getElementById('page').value,
+        size: document.getElementById('size').value,
+        sortBy: document.getElementById('sortBy').value,
+        sortDirection: document.getElementById('sortDirection').value
+      });
+      const response = await fetch(`/api/grid/orders?${params.toString()}`);
+      const data = await response.json();
+      summary.innerHTML = `
+        <h2>Run summary</h2>
+        <p><strong>Pattern:</strong> ${data.pattern} | <strong>Duration:</strong> <span class="mono">${data.durationMs} ms</span> | <strong>Total rows:</strong> <span class="mono">${data.totalElements}</span></p>
+        <p><strong>Heap used:</strong> <span class="mono">${data.memory.heapUsedBytes}</span> | <strong>Pod:</strong> <span class="mono">${data.memory.podName}</span></p>`;
+      rows.innerHTML = '';
+      data.content.forEach(row => {
+        const tr = document.createElement('tr');
+        columns.forEach(column => {
+          const td = document.createElement('td');
+          td.textContent = row[column];
+          tr.appendChild(td);
+        });
+        rows.appendChild(tr);
+      });
+    }
+
+    document.getElementById('load').addEventListener('click', loadGrid);
+    loadGrid();
+  </script>
+</body>
+</html>

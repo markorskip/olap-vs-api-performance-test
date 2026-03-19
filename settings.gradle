@@ -1,0 +1,2 @@
+rootProject.name = 'olap-vs-api-performance-test'
+include 'common', 'customer-service', 'product-service', 'grid-service'

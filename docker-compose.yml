@@ -1,0 +1,71 @@
+services:
+  postgres:
+    image: postgres:17
+    environment:
+      POSTGRES_DB: benchmark
+      POSTGRES_USER: benchmark
+      POSTGRES_PASSWORD: benchmark
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+      - ./sql/postgres:/docker-entrypoint-initdb.d
+
+  clickhouse:
+    image: clickhouse/clickhouse-server:25.3
+    ports:
+      - "8123:8123"
+      - "9000:9000"
+    volumes:
+      - clickhouse-data:/var/lib/clickhouse
+      - ./sql/clickhouse/01-create-database.sql:/docker-entrypoint-initdb.d/01-create-database.sql
+      - ./sql/clickhouse/02-create-order-grid-flat.sql:/docker-entrypoint-initdb.d/02-create-order-grid-flat.sql
+
+  customer-service:
+    build:
+      context: .
+      dockerfile: docker/customer-service.Dockerfile
+    environment:
+      APP_POSTGRES_URL: jdbc:postgresql://postgres:5432/benchmark
+      APP_POSTGRES_USERNAME: benchmark
+      APP_POSTGRES_PASSWORD: benchmark
+    depends_on:
+      - postgres
+    ports:
+      - "8081:8081"
+
+  product-service:
+    build:
+      context: .
+      dockerfile: docker/product-service.Dockerfile
+    environment:
+      APP_POSTGRES_URL: jdbc:postgresql://postgres:5432/benchmark
+      APP_POSTGRES_USERNAME: benchmark
+      APP_POSTGRES_PASSWORD: benchmark
+    depends_on:
+      - postgres
+    ports:
+      - "8082:8082"
+
+  grid-service:
+    build:
+      context: .
+      dockerfile: docker/grid-service.Dockerfile
+    environment:
+      APP_POSTGRES_URL: jdbc:postgresql://postgres:5432/benchmark
+      APP_POSTGRES_USERNAME: benchmark
+      APP_POSTGRES_PASSWORD: benchmark
+      APP_CLICKHOUSE_URL: jdbc:ch://clickhouse:8123/benchmark
+      CUSTOMER_SERVICE_URL: http://customer-service:8081
+      PRODUCT_SERVICE_URL: http://product-service:8082
+    depends_on:
+      - postgres
+      - clickhouse
+      - customer-service
+      - product-service
+    ports:
+      - "8080:8080"
+
+volumes:
+  postgres-data:
+  clickhouse-data:
