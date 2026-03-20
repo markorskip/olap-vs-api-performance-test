@@ -5,6 +5,7 @@ import com.example.benchmark.common.BenchmarkSummary;
 import com.example.benchmark.common.MemorySnapshot;
 import com.example.benchmark.common.OrderGridRow;
 import com.example.benchmark.common.PageResponse;
+import com.example.benchmark.common.StorageSnapshot;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.stereotype.Service;
@@ -40,7 +41,6 @@ public class OrderGridService {
 
     public PageResponse<OrderGridRow> query(GridQueryRequest request) {
         Instant start = Instant.now();
-        MemorySnapshot before = memoryProbe.sample();
         List<OrderGridRow> content;
         long total;
         switch (request.pattern()) {
@@ -62,6 +62,10 @@ public class OrderGridService {
             default -> throw new IllegalStateException("Unexpected value: " + request.pattern());
         }
         long duration = Duration.between(start, Instant.now()).toMillis();
+        MemorySnapshot memory = memoryProbe.sample();
+        StorageSnapshot storage = new StorageSnapshot(
+                repository.postgresStorageBytes(),
+                repository.clickHouseStorageBytes());
         return new PageResponse<>(
                 content,
                 request.page(),
@@ -72,7 +76,8 @@ public class OrderGridService {
                 request.sortDirection(),
                 request.pattern().name(),
                 duration,
-                before);
+                memory,
+                storage);
     }
 
     public BenchmarkSummary benchmark(BenchmarkRequest request) {

@@ -12,6 +12,7 @@ public record PageResponse<T>(
         String sortDirection,
         String pattern,
         long durationMs,
-        MemorySnapshot memory
+        MemorySnapshot memory,
+        StorageSnapshot storage
 ) {
 }

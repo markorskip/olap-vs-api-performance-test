@@ -66,6 +66,15 @@
     const headers = document.getElementById('headers');
     const rows = document.getElementById('rows');
     const summary = document.getElementById('summary');
+
+    function formatMb(bytes) {
+      const value = Number(bytes);
+      if (!Number.isFinite(value)) {
+        return 'N/A';
+      }
+      return `${(value / (1024 * 1024)).toFixed(2)} MB`;
+    }
+
     columns.forEach(column => {
       const option = document.createElement('option');
       option.value = column;
@@ -96,11 +105,14 @@
         return;
       }
       const data = await response.json();
-      const memory = data.memory || {heapUsedBytes: 'N/A', podName: 'N/A'};
+      const memory = data.memory || {};
+      const storage = data.storage || {};
+      const totalMemoryBytes = Number(memory.heapUsedBytes || 0) + Number(memory.nonHeapUsedBytes || 0);
       summary.innerHTML = `
         <h2>Run summary</h2>
         <p><strong>Pattern:</strong> ${data.pattern} | <strong>Duration:</strong> <span class="mono">${data.durationMs} ms</span> | <strong>Total rows:</strong> <span class="mono">${data.totalElements}</span></p>
-        <p><strong>Heap used:</strong> <span class="mono">${memory.heapUsedBytes}</span> | <strong>Pod:</strong> <span class="mono">${memory.podName}</span></p>`;
+        <p><strong>Memory used:</strong> <span class="mono">${formatMb(totalMemoryBytes)}</span> | <strong>Heap:</strong> <span class="mono">${formatMb(memory.heapUsedBytes)}</span> | <strong>Non-heap:</strong> <span class="mono">${formatMb(memory.nonHeapUsedBytes)}</span></p>
+        <p><strong>Postgres storage:</strong> <span class="mono">${formatMb(storage.postgresUsedBytes)}</span> | <strong>ClickHouse storage:</strong> <span class="mono">${formatMb(storage.clickHouseUsedBytes)}</span> | <strong>Pod:</strong> <span class="mono">${memory.podName || 'N/A'}</span></p>`;
       rows.innerHTML = '';
       data.content.forEach(row => {
         const tr = document.createElement('tr');

@@ -66,6 +66,22 @@ public class OrderGridRepository {
                 .single();
     }
 
+    public long postgresStorageBytes() {
+        return postgresJdbcClient.sql("select pg_database_size(current_database())")
+                .query(Long.class)
+                .single();
+    }
+
+    public long clickHouseStorageBytes() {
+        return clickHouseJdbcClient.sql("""
+                select ifNull(sum(bytes_on_disk), 0)
+                from system.parts
+                where active and database = 'benchmark'
+                """)
+                .query(Long.class)
+                .single();
+    }
+
     public List<OrderGridRow> queryViewPage(String sortBy, String sortDirection, int size, int offset) {
         String sql = """
                 select order_id, customer_id, customer_name, customer_region, customer_segment,
