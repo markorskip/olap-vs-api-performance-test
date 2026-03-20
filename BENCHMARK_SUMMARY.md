@@ -4,11 +4,17 @@
 
 This document summarizes the benchmark runs captured from the local Docker-based benchmark stack on `2026-03-19`. Each dataset size was loaded into PostgreSQL using the repo's dataset presets, ClickHouse was refreshed from PostgreSQL after each load, and query latency was measured through `POST /api/grid/orders/benchmark` with `3` iterations using `page=0`, `size=100`, `sortBy=orderedAt`, and `sortDirection=desc`.
 
-The three query patterns are:
+The data model in this benchmark is intentionally synthetic. Orders, customers, and products are only example entities used to create a repeatable joined grid workload. The goal is not to model a specific production domain, but to test how different architectural read patterns behave under the same logical access pattern as row counts grow.
 
-- `A`: API join, sort, and page in memory
-- `B`: PostgreSQL cross-schema view
-- `C`: ClickHouse flattened table
+The reason for this benchmark is architectural rather than purely technical. The current application behavior is an API aggregation pattern: the grid service reads orders from one source, calls other services for related customer and product data, then joins, sorts, and pages the result in application memory. That matches the current microservice-friendly approach, but it becomes expensive as data volume grows because every query has to coordinate multiple data sources and materialize more rows inside the application.
+
+This project benchmarks that current approach against two alternatives that map directly to the decision under consideration:
+
+- `API aggregation in memory`: keep the current approach, with aggregation and sorting in the application layer
+- `Single PostgreSQL database with logical schemas`: move read-heavy grid queries into one operational database while preserving domain separation through schemas
+- `ClickHouse read-only projection`: keep operational ownership elsewhere, but expose the grid from a read-optimized analytical store refreshed from source data
+
+In practical terms, the question is not just which query is faster. The question is whether the current API aggregation pattern should remain the primary read path, whether those reads should be consolidated into one PostgreSQL database with logical separation, or whether they should move to a dedicated read-only ClickHouse projection. The benchmark is meant to show where the current API aggregation model stops scaling, where a schema-separated PostgreSQL approach starts to degrade, and where a ClickHouse projection becomes worth the refresh and storage overhead.
 
 Storage values are reported using the current application metrics:
 
@@ -17,14 +23,14 @@ Storage values are reported using the current application metrics:
 
 ## Query Time Results
 
-| Dataset | Pattern A Avg (ms) | Pattern B Avg (ms) | Pattern C Avg (ms) | Notes |
+| Dataset | API Aggregation In Memory Avg (ms) | Single PostgreSQL Database With Logical Schemas Avg (ms) | ClickHouse Read-Only Projection Avg (ms) | Notes |
 | --- | ---: | ---: | ---: | --- |
 | 1K | 25.00 | 2.33 | 21.67 | All three patterns completed |
 | 10K | 142.33 | 3.67 | 24.33 | All three patterns completed |
-| 100K | N/A | 18.33 | 25.67 | Pattern A returned HTTP 500 |
-| 1M | N/A | 52.33 | 23.33 | Pattern A returned HTTP 500 |
-| 10M | N/A | 868.33 | 52.33 | Pattern A skipped as impractical |
-| 100M | N/A | 15897.67 | 68.67 | Pattern A skipped as impractical |
+| 100K | N/A | 18.33 | 25.67 | API aggregation returned HTTP 500 |
+| 1M | N/A | 52.33 | 23.33 | API aggregation returned HTTP 500 |
+| 10M | N/A | 868.33 | 52.33 | API aggregation skipped as impractical |
+| 100M | N/A | 15897.67 | 68.67 | API aggregation skipped as impractical |
 
 ## Database Size Results
 
@@ -41,7 +47,7 @@ Storage values are reported using the current application metrics:
 
 ### Small-Scale Latency Comparison
 
-Series order: Pattern A, Pattern B, Pattern C.
+Series order: API aggregation in memory, single PostgreSQL database with logical schemas, ClickHouse read-only projection.
 
 ```mermaid
 xychart-beta
@@ -55,7 +61,7 @@ xychart-beta
 
 ### Full-Scale Latency Comparison
 
-Series order: Pattern B, Pattern C.
+Series order: single PostgreSQL database with logical schemas, ClickHouse read-only projection.
 
 ```mermaid
 xychart-beta
@@ -81,8 +87,10 @@ xychart-beta
 
 ## Summary
 
-Pattern `B` was the fastest option through `100K` rows, but it degraded sharply after that point. Pattern `C` was slightly slower at the smallest sizes, then overtook PostgreSQL by `1M` rows and stayed comparatively flat all the way to `100M`.
+The single PostgreSQL database with logical schemas was the fastest option through `100K` rows, but it degraded sharply after that point. The ClickHouse read-only projection was slightly slower at the smallest sizes, then overtook PostgreSQL by `1M` rows and stayed comparatively flat all the way to `100M`.
 
-Pattern `A` only completed at `1K` and `10K`, failed with HTTP `500` by `100K`, and was not attempted at `10M` and `100M` because the design requires materializing and joining the entire dataset in memory. That failure mode is itself a useful result for the project because it shows the practical upper bound of the API-join approach.
+The API aggregation in memory approach only completed at `1K` and `10K`, failed with HTTP `500` by `100K`, and was not attempted at `10M` and `100M` because the design requires materializing and joining the entire dataset in memory. That failure mode is itself a useful result because it shows the practical upper bound of the current aggregation model.
+
+From an architecture perspective, the current API aggregation approach appears viable only at small scale. A single PostgreSQL database with logical schemas looks like the lowest-friction replacement if the workload stays in the `1K` to `1M` range and query latency in the tens of milliseconds is acceptable. If the target is predictable performance at `10M` to `100M` rows for grid-style queries, the ClickHouse read-only projection is the stronger read path, provided the system can tolerate refresh latency and the operational complexity of maintaining a second store.
 
 On storage, ClickHouse remained materially smaller than PostgreSQL across every tested size. At `100M`, PostgreSQL reached about `15.60 GiB` of database size while ClickHouse active data was about `3.94 GiB`, with a `100M` PostgreSQL load taking about `19.7` minutes and the corresponding ClickHouse refresh taking about `5.0` minutes.
