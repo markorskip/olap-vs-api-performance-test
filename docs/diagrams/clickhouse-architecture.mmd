@@ -1,0 +1,33 @@
+flowchart LR
+    UI[Browser UI]
+    Grid[Grid API]
+
+    subgraph Services[Operational Services]
+      OS[Order Service]
+      CS[Customer Service]
+      PS[Product Service]
+    end
+
+    subgraph OLTP[Operational Stores]
+      ODB[(Orders DB)]
+      CDB[(Customers DB)]
+      PDB[(Products DB)]
+    end
+
+    subgraph Sync[Refresh / CDC / ETL]
+      R[Projection Builder]
+    end
+
+    CH[(ClickHouse<br/>order_grid_flat)]
+
+    UI --> Grid
+    Grid --> CH
+
+    OS --> ODB
+    CS --> CDB
+    PS --> PDB
+
+    ODB -.-> R
+    CDB -.-> R
+    PDB -.-> R
+    R --> CH

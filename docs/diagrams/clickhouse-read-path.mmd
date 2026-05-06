@@ -1,0 +1,11 @@
+sequenceDiagram
+    participant UI as Browser UI
+    participant Grid as Grid API
+    participant CH as ClickHouse Projection
+    participant Pg as Source Databases
+
+    Pg-->>CH: refresh / CDC keeps projection current
+    UI->>Grid: page 0, size 100, sort by orderedAt desc
+    Grid->>CH: SELECT from order_grid_flat ORDER BY ordered_at DESC LIMIT 100
+    CH-->>Grid: already joined, columnar, sorted result
+    Grid-->>UI: first 100 rows

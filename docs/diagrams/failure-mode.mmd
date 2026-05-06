@@ -1,0 +1,14 @@
+flowchart TB
+    Request[Grid query]
+    Fanout[Call each service]
+    Materialize[Materialize joined rows in app memory]
+    Sort[Sort the full joined dataset]
+    Page[Return requested page]
+    Memory[(Application heap)]
+    Failure{Rows keep growing}
+
+    Request --> Fanout --> Materialize --> Sort --> Page
+    Materialize --> Memory
+    Memory --> Failure
+    Failure -->|100K rows| Error[HTTP 500 in benchmark]
+    Failure -->|10M-100M rows| Skip[Skipped as impractical]

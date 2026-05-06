@@ -1,0 +1,22 @@
+flowchart LR
+    UI[Browser UI]
+
+    subgraph Services[Microservices]
+      OS[Order Service]
+      CS[Customer Service]
+      PS[Product Service]
+    end
+
+    subgraph Databases[Operational Stores]
+      ODB[(Orders DB)]
+      CDB[(Customers DB)]
+      PDB[(Products DB)]
+    end
+
+    UI --> OS
+    UI --> CS
+    UI --> PS
+
+    OS --> ODB
+    CS --> CDB
+    PS --> PDB

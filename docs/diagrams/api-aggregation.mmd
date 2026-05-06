@@ -1,0 +1,15 @@
+sequenceDiagram
+    participant UI as Browser UI
+    participant Grid as Grid/API Aggregator
+    participant Orders as Order Service
+    participant Customers as Customer Service
+    participant Products as Product Service
+
+    UI->>Grid: page 0, size 100, sort by orderedAt desc
+    Grid->>Orders: fetch candidate orders
+    Grid->>Customers: fetch related customers
+    Grid->>Products: fetch related products
+    Grid->>Grid: join rows in memory
+    Grid->>Grid: sort full joined dataset
+    Grid->>Grid: page after global sort
+    Grid-->>UI: first 100 rows
